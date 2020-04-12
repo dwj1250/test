@@ -1,0 +1,121 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Xml网页格式化展示</title>
+    <script type="text/javascript" src="jquery-1.5.2.min.js"></script>
+    <style>
+        body { margin:0; font-family:"微软雅黑"; font-size:12px; }
+        table { border-collapse:collapse; }
+        table .tdLeft { width:150px; text-align:right; line-height:30px;}
+        table .tdRight { width:400px; }
+        table textarea { width:400px; height:100px; }
+        #showXml { margin-left:150px;  width:400px; height:400px; }
+    </style>
+    <script>
+        function showXml(){
+            text = $('#xmlContent').val();
+
+            //去掉多余的空格
+            text = '\n' + text.replace(/(<\w+)(\s.*?>)/g,function($0, name, props)
+            {
+                return name + ' ' + props.replace(/\s+(\w+=)/g," $1");
+            }).replace(/>\s*?</g,">\n<");
+
+            //把注释编码
+            text = text.replace(/\n/g,'\r').replace(/<!--(.+?)-->/g,function($0, text)
+            {
+                var ret = '<!--' + escape(text) + '-->';
+                return ret;
+            }).replace(/\r/g,'\n');
+
+            //调整格式
+            var rgx = /\n(<(([^\?]).+?)(?:\s|\s*?>|\s*?(\/)>)(?:.*?(?:(?:(\/)>)|(?:<(\/)\2>)))?)/mg;
+            var nodeStack = [];
+            var output = text.replace(rgx,function($0,all,name,isBegin,isCloseFull1,isCloseFull2 ,isFull1,isFull2){
+                var isClosed = (isCloseFull1 == '/') || (isCloseFull2 == '/' ) || (isFull1 == '/') || (isFull2 == '/');
+                var prefix = '';
+                if(isBegin == '!')
+                {
+                    prefix = getPrefix(nodeStack.length);
+                }
+                else
+                {
+                    if(isBegin != '/')
+                    {
+                        prefix = getPrefix(nodeStack.length);
+                        if(!isClosed)
+                        {
+                            nodeStack.push(name);
+                        }
+                    }
+                    else
+                    {
+                        nodeStack.pop();
+                        prefix = getPrefix(nodeStack.length);
+                    }
+
+                }
+                var ret =  '\n' + prefix + all;
+                return ret;
+            });
+
+            var prefixSpace = -1;
+            var outputText = output.substring(1);
+
+            //把注释还原并解码，调格式
+            outputText = outputText.replace(/\n/g,'\r').replace(/(\s*)<!--(.+?)-->/g,function($0, prefix,  text)
+            {
+                if(prefix.charAt(0) == '\r')
+                    prefix = prefix.substring(1);
+                text = unescape(text).replace(/\r/g,'\n');
+                var ret = '\n' + prefix + '<!--' + text.replace(/^\s*/mg, prefix ) + '-->';
+                return ret;
+            });
+            alert(outputText);
+
+            outputText=	outputText.replace(/\s+$/g,'').replace(/\r/g,'\r\n');
+
+            $('#showXml').val(outputText);
+
+            //div内展示，需替换“<”以及“>”
+            /*		var reg = new RegExp("<","g");//g,表示全部替换。
+             outputText = outputText.replace(reg,"<");
+             var reg2 = new RegExp(">","g");//g,表示全部替换。
+             outputText = outputText.replace(reg2,">");
+             $('#container').html(outputText);
+             alert(outputText);*/
+
+        }
+
+        function getPrefix(prefixIndex)
+        {
+            var span = '    ';
+            var output = [];
+            for(var i = 0 ; i < prefixIndex; ++i)
+            {
+                output.push(span);
+            }
+
+            return output.join('');
+        }
+
+    </script>
+</head>
+<body>
+<table>
+    <tr>
+        <td class="tdLeft" nowrap>请输入要展示的Xml：</td>
+        <td class="tdRight"><textarea id="xmlContent"></textarea></td>
+    </tr>
+    <tr>
+        <td class="tdLeft"> </td>
+        <td class="tdRight"><input type="button" value="格式化Xml" onClick="showXml()"></td>
+    </tr>
+</table>
+<div id="container">
+</div>
+<textarea id="showXml" style="width: 75%"></textarea>
+
+</body>
+</html>
